@@ -1,101 +1,70 @@
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.util.Scanner;
+// A Java program for a Client 
+import java.net.*; 
+import java.io.*; 
 
-import java.awt.BorderLayout;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
+public class Client 
+{ 
+	// initialize socket and input output streams 
+	private Socket socket		 = null; 
+	private DataInputStream input = null; 
+	private DataOutputStream out	 = null; 
 
-/**
- * A simple Swing-based client for the chat server. Graphically it is a frame
- * with a text field for entering messages and a textarea to see the whole
- * dialog.
- *
- * The client follows the following Chat Protocol. When the server sends
- * "SUBMITNAME" the client replies with the desired screen name. The server will
- * keep sending "SUBMITNAME" requests as long as the client submits screen names
- * that are already in use. When the server sends a line beginning with
- * "NAMEACCEPTED" the client is now allowed to start sending the server
- * arbitrary strings to be broadcast to all chatters connected to the server.
- * When the server sends a line beginning with "MESSAGE" then all characters
- * following this string should be displayed in its message area.
- */
-public class Client {
+	// constructor to put ip address and port 
+	public Client(String address, int port) 
+	{ 
+		// establish a connection 
+		try
+		{ 
+			socket = new Socket(address, port); 
+			System.out.println("Connected"); 
 
-    String serverAddress;
-    Scanner in;
-    PrintWriter out;
-    JFrame frame = new JFrame("Chatter");
-    JTextField textField = new JTextField(50);
-    JTextArea messageArea = new JTextArea(16, 50);
+			// takes input from terminal 
+			input = new DataInputStream(System.in); 
 
-    /**
-     * Constructs the client by laying out the GUI and registering a listener with
-     * the textfield so that pressing Return in the listener sends the textfield
-     * contents to the server. Note however that the textfield is initially NOT
-     * editable, and only becomes editable AFTER the client receives the
-     * NAMEACCEPTED message from the server.
-     */
-    public Client(String serverAddress) {
-        this.serverAddress = serverAddress;
+			// sends output to the socket 
+			out = new DataOutputStream(socket.getOutputStream()); 
+		} 
+		catch(UnknownHostException u) 
+		{ 
+			System.out.println(u); 
+		} 
+		catch(IOException i) 
+		{ 
+			System.out.println(i); 
+		} 
 
-        textField.setEditable(false);
-        messageArea.setEditable(false);
-        frame.getContentPane().add(textField, BorderLayout.SOUTH);
-        frame.getContentPane().add(new JScrollPane(messageArea), BorderLayout.CENTER);
-        frame.pack();
+		// string to read message from input 
+		String line = ""; 
 
-        // Send on enter then clear to prepare for next message
-        textField.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                out.println(textField.getText());
-                textField.setText("");
-            }
-        });
-    }
+		// keep reading until "Over" is input 
+		while (!line.equals("Over")) 
+		{ 
+			try
+			{ 
+				line = input.readLine(); 
+				out.writeUTF(line); 
+			} 
+			catch(IOException i) 
+			{ 
+				System.out.println(i); 
+			} 
+		} 
 
-    private String getName() {
-        return JOptionPane.showInputDialog(frame, "Choose a screen name:", "Screen name selection",
-                JOptionPane.PLAIN_MESSAGE);
-    }
+		// close the connection 
+		try
+		{ 
+			input.close(); 
+			out.close(); 
+			socket.close(); 
+		} 
+		catch(IOException i) 
+		{ 
+			System.out.println(i); 
+		} 
+	} 
 
-    private void run() throws IOException {
-        try {
-            var socket = new Socket(serverAddress, 59001);
-            in = new Scanner(socket.getInputStream());
-            out = new PrintWriter(socket.getOutputStream(), true);
-
-            while (in.hasNextLine()) {
-                var line = in.nextLine();
-                if (line.startsWith("SUBMITNAME")) {
-                    out.println(getName());
-                } else if (line.startsWith("NAMEACCEPTED")) {
-                    this.frame.setTitle("Chatter - " + line.substring(13));
-                    textField.setEditable(true);
-                } else if (line.startsWith("MESSAGE")) {
-                    messageArea.append(line.substring(8) + "\n");
-                }
-            }
-        } finally {
-            frame.setVisible(false);
-            frame.dispose();
-        }
-    }
-
-    public static void main(String[] args) throws Exception {
-        if (args.length != 1) {
-            System.err.println("Pass the server IP as the sole command line argument");
-            return;
-        }
-        var client = new Client(args[0]);
-        client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        client.frame.setVisible(true);
-        client.run();
-    }
-}
+	public static void main(String args[]) 
+	{
+		Client client = new Client("127.0.0.1", 5000); 
+	} 
+} 
